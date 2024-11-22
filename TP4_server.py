@@ -37,6 +37,30 @@ class Server:
         # self._client_socs
         # self._logged_users
         # ...
+        self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self._server_socket.bind(("localhost", 1234))
+        self._server_socket.listen()
+        print(f"Listening on port {self._server_socket.getsockname()[1]}")
+        self._client_socs = []
+        self._logged_users = {}
+        if not os.path.exists(os.getcwd() + "/SERVER_DATA_DIR/SERVER_LOST_DIR."):
+            os.makedirs(os.getcwd() + "/SERVER_DATA_DIR/SERVER_LOST_DIR.")
+
+        while True:
+            result = select.select(
+            [self._server_socket] + self._client_socs,
+            [],
+            [])
+
+
+            readable_sockets: list[socket.socket] = result[0]
+            for soc in readable_sockets:
+                if soc == self._server_socket:
+                    self._accept_client()
+            else:
+                #process client deja existant
+                pass
 
     def cleanup(self) -> None:
         """Ferme toutes les connexions résiduelles."""
