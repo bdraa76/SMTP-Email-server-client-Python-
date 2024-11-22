@@ -5,7 +5,6 @@ Noms et numéros étudiants:
 -
 -
 """
-
 import hashlib
 import hmac
 import json
@@ -39,7 +38,7 @@ class Server:
         # ...
         self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self._server_socket.bind(("localhost", 1234))
+        self._server_socket.bind(("localhost", gloutils.APP_PORT))
         self._server_socket.listen()
         print(f"Listening on port {self._server_socket.getsockname()[1]}")
         self._client_socs = []

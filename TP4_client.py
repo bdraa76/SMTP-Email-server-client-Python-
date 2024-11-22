@@ -42,7 +42,7 @@ class Client:
             self._socket.connect((host,port))
             print(f"Connexion au serveur {host}:{port} établie.")
             
-        except glosocket.GLOSocketError :
+        except glosocket.GLOSocketError as e :
             print(f"La connexion au serveur a échoué : {e}", file=sys.stderr)
 
 
