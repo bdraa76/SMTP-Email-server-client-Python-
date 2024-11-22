@@ -59,7 +59,7 @@ class Server:
                 if soc == self._server_socket:
                     self._accept_client()
             else:
-                #process client deja existant
+                self._login()
                 pass
 
     def cleanup(self) -> None:
@@ -70,9 +70,18 @@ class Server:
 
     def _accept_client(self) -> None:
         """Accepte un nouveau client."""
+        client_socket, _ = self._server_socket.accept()
+        # Une fois la connexion établie, on ajoute le client à la liste
+        self._client_list.append(client_socket)
+        ##envoyer un message
 
     def _remove_client(self, client_soc: socket.socket) -> None:
         """Retire le client des structures de données et ferme sa connexion."""
+
+        ##ici on veut enlever de la database la trace du client, puis on le logout
+
+        self._logout(client_soc)
+
 
     def _create_account(self, client_soc: socket.socket,
                         payload: gloutils.AuthPayload
@@ -98,6 +107,9 @@ class Server:
 
     def _logout(self, client_soc: socket.socket) -> None:
         """Déconnecte un utilisateur."""
+        if client_soc in self._client_list:
+            self._client_list.remove(client_soc)
+        client_soc.close()
 
     def _get_email_list(self, client_soc: socket.socket
                         ) -> gloutils.GloMessage:
