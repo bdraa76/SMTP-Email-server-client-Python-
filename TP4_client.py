@@ -41,6 +41,7 @@ class Client:
             #Connecter au serveur
             self._socket.connect((host,port))
             print(f"Connexion au serveur {host}:{port} établie.")
+            
         except glosocket.GLOSocketError :
             print(f"La connexion au serveur a échoué : {e}", file=sys.stderr)
 
@@ -54,9 +55,36 @@ class Client:
         Si la création du compte s'est effectuée avec succès, l'attribut
         `_username` est mis à jour, sinon l'erreur est affichée.
         """
+        try:
+            #Récupération des informations 
+            username = input("Entrez un nom d'utilisateur.")
+            password = getpass.getpass("Entrez votre mot de passe : ")
 
-        username = input("Entrez un nom d'utilisateur.")
-        password = getpass.getpass("Entrez votre mot de passe : ")
+            message = {
+                "header" : "AUTH_REGISTER",
+                "payload" : {
+                    "username" : username,
+                    "password" : password
+                }
+            }
+            #Envoyer le message au serveur
+            self._socket.sendall(json.dumps(message).encode('utf-8'))
+
+            #Recevoir la reponse du serveur
+            reponse = self._socket.recv(4096)
+            reponse = json.loads(reponse.decode('utf-8'))
+
+            #Traitement de la reponse
+            if reponse["header"] == "OK":
+                print("Création du compte réussie ! Vous pouvez à présent vous connecter.")
+                self._username = username
+            elif reponse["header"] == "ERROR" :
+                error_msg = reponse["payload"].get("error_message", "Erreur inconnue.")
+                print(f"Erreur : {error_msg}")
+
+        except (socket.error, json.JSONDecodeError) as e:
+            print(f"Erreur de communication avec le serveur : {e}")
+        
 
 
     def _login(self) -> None:
@@ -67,12 +95,62 @@ class Client:
         Si la connexion est effectuée avec succès, l'attribut `_username`
         est mis à jour, sinon l'erreur est affichée.
         """
+        try:
+            #Récupération des informations 
+            username = input("Entrez un nom d'utilisateur.")
+            password = getpass.getpass("Entrez votre mot de passe : ")
+
+            message = {
+                "header" : "AUTH_LOGIN",
+                "payload" : {
+                    "username" : username,
+                    "password" : password
+                }
+            }
+            #Envoyer le message au serveur
+            self._socket.sendall(json.dumps(message).encode('utf-8'))
+
+            #Recevoir la reponse du serveur
+            reponse = self._socket.recv(4096)
+            reponse = json.loads(reponse.decode('utf-8'))
+
+            #Traitement de la reponse
+            if reponse["header"] == "OK":
+                print(f"Connexion réussie ! Bienvenue {username} !")
+                self._username = username
+            elif reponse["header"] == "ERROR" :
+                error_msg = reponse["payload"].get("error_message", "Erreur inconnue.")
+                print(f"Erreur : {error_msg}")
+
+        except (socket.error, json.JSONDecodeError) as e:
+            print(f"Erreur de communication avec le serveur : {e}")
+
+
+            
+
+
 
     def _quit(self) -> None:
         """
         Préviens le serveur de la déconnexion avec l'entête `BYE` et ferme le
         socket du client.
         """
+        try :
+            #Message de deconnexion
+            message ={"header" : "BYE"}
+
+            #Envoyer le message au serveur
+            self._socket.sendall(json.dumps(message).encode('utf-8'))
+            print("Déconnexion en cours...")
+
+            #Fermeture du socket
+            self._socket.close()
+            print("Connexion au serveur clôturée.")
+        except socket.error as e:
+            print(f"Erreur lors de la déconnexion : {e}")
+        finally :
+            self._socket = None #Libération du socket
+
 
     def _read_email(self) -> None:
         """
@@ -87,6 +165,10 @@ class Client:
         S'il n'y a pas de courriel à lire, l'utilisateur est averti avant de
         retourner au menu principal.
         """
+
+        try :
+            #Demande la liste des courriels au serveur
+            courriels = 
 
     def _send_email(self) -> None:
         """
