@@ -126,10 +126,6 @@ class Client:
             print(f"Erreur de communication avec le serveur : {e}")
 
 
-            
-
-
-
     def _quit(self) -> None:
         """
         Préviens le serveur de la déconnexion avec l'entête `BYE` et ferme le
@@ -167,8 +163,62 @@ class Client:
         """
 
         try :
-            #Demande la liste des courriels au serveur
-            courriels = 
+            #Demande la liste des courriels au serveur et lui envoie
+            requete = {"header" : gloutils.Headers.INBOX_READING_REQUEST}
+
+            self._socket.sendall(json.dumps(requete).encode('utf-8'))
+
+            # Réception de la réponse du serveur
+            response = json.loads(self._socket.recv(4096).decode())
+
+            email_list = response.get("payload", {}).get("email_list", [])
+            if not email_list:
+                print("Aucun courriel disponible.")
+                return
+
+            #Afficher la liste des courriels
+            print("Liste des courriels :")
+            for i, email_summary in enumerate(email_list, start=1):
+                print(f"{i}. {email_summary}")
+
+            #Demander le choix à l'utilisateur
+            try:
+                choice = int(input("Entrez le numéro du courriel à lire :"))
+                if choice < 1 or choice > len(email_list):
+                    raise ValueError("Choix invalide.")
+            except ValueError as e :
+                print(e)
+                return
+
+            #Envoyer le choix de l'utilisateur au serveur
+            choice_request = {
+                "header": gloutils.Headers.INBOX_READING_CHOICE,
+                "payload": {
+                    "choice": choice
+                }
+            }
+            glosocket.snd_mesg(self._socket, json.dumps(choice_request))
+
+            #Reception et affichage du courriel choisi
+            email_reponse = json.loads(glosocket.recv_mesg(self._socket))
+            email_payload = email_reponse.get("payload")
+            if not email_payload :
+                print("Erreur : le courriel demandé n'a pas pu être récupéré.")
+                return
+
+            print(gloutils.EMAIL_DISPLAY.format(
+                    sender=email_payload["sender"],
+                    to=email_payload["destination"],
+                    subject=email_payload["subject"],
+                    date=email_payload["date"],
+                    body=email_payload["content"]
+                    ))
+        except glosocket.GLOSocketError as e:
+            print(f"Erreur de communication avec le serveur : {e}")
+        except Exception as e:
+            print(f"Erreur lors de la lecture des courriels : {e}")
+
+
 
     def _send_email(self) -> None:
         """
@@ -181,6 +231,23 @@ class Client:
 
         Transmet ces informations avec l'entête `EMAIL_SENDING`.
         """
+        # Demander les informations à l'utilisateur
+        destinataire = input("Entrez l'adresse email du destinataire : ")
+        sujet = input("Entrez le sujet du message :")
+        print("Entrez le corps du message (entrez '.' sur une seule ligne pour terminer")
+        corps = ""
+        buffer = ""
+        while (buffer != ".\n"):
+            corps += buffer
+        buffer = input() + '\n'
+
+        message = {
+            "header" : "AUTH_REGISTER",
+            "payload" : {"destination" : destinataire,
+                         "subject" : sujet,
+                         "content" : corps
+                         }
+        }
 
     def _check_stats(self) -> None:
         """
