@@ -1,8 +1,8 @@
 """\
 GLO-2000 Travail pratique 4 - Serveur
 Noms et numéros étudiants:
--
--
+-Bilal Draa
+-Olivier Bertrand
 -
 """
 import hashlib

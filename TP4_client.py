@@ -27,19 +27,16 @@ class Client:
         Prépare un attribut `_username` pour stocker le nom d'utilisateur
         courant. Laissé vide quand l'utilisateur n'est pas connecté.
         """
+        #Initialisaition De l'attribut username
         self._username = ""
-        self._socket = None
-
         try:
                 # Création et connexion du socket
                 self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                # Récupération de l'adresse ip et du port à partir de la destination
-                host, port = destination.split(":")
                 # Connecter au serveur
-                self._socket.connect((host, int(port)))
-                print(f"Connexion au serveur {host}:{port} établie.")
-        except (socket.error, glosocket.GLOSocketError) as e:
-                print(f"La connexion au serveur a échoué : {e}", file=sys.stderr)
+                self._socket.connect((destination, gloutils.APP_PORT))
+                print(f"Connexion au serveur {destination} établie.")
+        except glosocket.GLOSocketError as e:
+                print(f"Échec de l'initialisation du client : {e}")
                 sys.exit(1)
 
     def _register(self) -> None:
@@ -50,36 +47,30 @@ class Client:
         Si la création du compte s'est effectuée avec succès, l'attribut
         `_username` est mis à jour, sinon l'erreur est affichée.
         """
+        # Récupération des informations
+        username = input("Entrez un nom d'utilisateur.")
+        password = getpass.getpass("Entrez votre mot de passe : ")
+
         try:
-            #Récupération des informations 
-            username = input("Entrez un nom d'utilisateur.")
-            password = getpass.getpass("Entrez votre mot de passe : ")
+            #Creation de la requete et envoi au serveur
+            message = gloutils.GloMessage(header=gloutils.Headers.AUTH_REGISTER,
+                                        payload=gloutils.AuthPayload(
+                                        username=username,
+                                        password=password))
+            glosocket.snd_mesg(self._socket, json.dumps(message))
 
-            message = {
-                "header" : "AUTH_REGISTER",
-                "payload" : {
-                    "username" : username,
-                    "password" : password
-                }
-            }
-            #Envoyer le message au serveur
-            self._socket.sendall(json.dumps(message).encode('utf-8'))
+            #Reponse du serveur
+            reponse = json.loads(glosocket.recv_mesg(self._socket))
 
-            #Recevoir la reponse du serveur
-            reponse = self._socket.recv(4096)
-            reponse = json.loads(reponse.decode('utf-8'))
-
-            #Traitement de la reponse
-            if reponse["header"] == "OK":
-                print("Création du compte réussie ! Vous pouvez à présent vous connecter.")
+            #Traitement de la reponse du serveur
+            if reponse["header"] == gloutils.Headers.OK:
+                print("Création du compte réussie !")
                 self._username = username
-            elif reponse["header"] == "ERROR" :
-                error_msg = reponse["payload"].get("error_message", "Erreur inconnue.")
-                print(f"Erreur : {error_msg}")
+            elif reponse["header"] == gloutils.Headers.ERROR :
+                print(reponse["payload"]["error_message"])
 
-        except (socket.error, json.JSONDecodeError) as e:
+        except glosocket.GLOSocketError as e:
             print(f"Erreur de communication avec le serveur : {e}")
-            return
         
 
 
@@ -91,34 +82,30 @@ class Client:
         Si la connexion est effectuée avec succès, l'attribut `_username`
         est mis à jour, sinon l'erreur est affichée.
         """
-        try:
-            #Récupération des informations 
-            username = input("Entrez un nom d'utilisateur.")
-            password = getpass.getpass("Entrez votre mot de passe : ")
 
-            message = {
-                "header" : "AUTH_LOGIN",
-                "payload" : {
-                    "username" : username,
-                    "password" : password
-                }
-            }
-            #Envoyer le message au serveur
-            self._socket.sendall(json.dumps(message).encode('utf-8'))
+        #Récupération des informations
+        username = input("Entrez votre nom d'utilisateur.")
+        password = getpass.getpass("Entrez votre mot de passe : ")
 
-            #Recevoir la reponse du serveur
-            response = self._socket.recv(4096)
-            response = json.loads(response.decode('utf-8'))
+        try :
+            #Creation et envoi de la requete
+            message = gloutils.GloMessage(header=gloutils.Headers.AUTH_LOGIN,
+                                        payload=gloutils.AuthPayload(
+                                        username=username,
+                                        password=password))
 
-            #Traitement de la reponse
-            if response["header"] == "OK":
-                print(f"Connexion réussie ! Bienvenue {username} !")
+            glosocket.snd_mesg(self._socket, json.dumps(message))
+
+            #Trairement de la réponse
+            reponse = json.loads(glosocket.recv_mesg(self._socket))
+
+            if reponse["header"] == gloutils.Headers.OK:
+                print(f"Connexion réussie. Bienvenue {username} !")
                 self._username = username
-            elif response["header"] == "ERROR" :
-                error_msg = response["payload"].get("error_message", "Erreur inconnue.")
-                print(f"Erreur : {error_msg}")
+            elif reponse["header"] == gloutils.Headers.ERROR :
+                print(reponse["payload"]["error_message"])
 
-        except (socket.error, json.JSONDecodeError) as e:
+        except glosocket.GLOSocketError as e:
             print(f"Erreur de communication avec le serveur : {e}")
 
 
@@ -129,20 +116,15 @@ class Client:
         """
         try :
             #Message de deconnexion
-            message ={"header" : "BYE"}
+            message = gloutils.GloMessage(header=gloutils.Headers.BYE, payload={})
 
-            #Envoyer le message au serveur
-            self._socket.sendall(json.dumps(message).encode('utf-8'))
-            print("Déconnexion en cours...")
-
-            #Fermeture du socket
+            #Envoyer le message au serveur et fermer le socket
+            glosocket.snd_mesg(self._socket, json.dumps(message))
+            print("Déconnexion réussie.")
             self._socket.close()
-            print("Connexion au serveur clôturée.")
-        except socket.error as e:
-            print(f"Erreur lors de la déconnexion : {e}")
-        finally :
-            self._socket = None #Libération du socket
 
+        except glosocket.GLOSocketError as e:
+            print(f"Échec de la déconnexion : {e}")
 
     def _read_email(self) -> None:
         """
@@ -160,40 +142,57 @@ class Client:
 
         try:
             # Demander et afficher la liste des courriels
-            response = json.loads(self._socket.recv(4096).decode())
-            email_list = response.get("payload", {}).get("email_list", [])
+            message = gloutils.GloMessage(header=gloutils.Headers.INBOX_READING_REQUEST)
+            glosocket.snd_mesg(self._socket, json.dumps(message))
+            reponse = json.loads(glosocket.recv_mesg(self._socket))
+            # Vérification de la réponse du serveur
+            if reponse["header"] != gloutils.Headers.OK:
+                print(reponse["payload"].get("error_message", "Erreur inconnue du serveur."))
+                return
+
+            # Recuperer la liste des courriels
+            email_list = reponse["payload"]["email_list"]
             if not email_list:
-                print("Aucun courriel disponible.")
+                print("Aucun courriel.")
                 return
 
-            print("Liste des courriels :")
-            for i, email_summary in enumerate(email_list, start=1):
-                print(f"{i}. {email_summary}")
+            # Affichage des courriels
+            for email in email_list:
+                print(email)
 
-            # Validation du choix de l'utilisateur
-            choice = int(input("Entrez le numéro du courriel à lire : "))
-            if choice < 1 or choice > len(email_list):
+            # Demande du choix de l'utilisateur
+            while True:
+                choice = input("Entrez le numéro du courriel à consulter : ").strip()
+                if choice.isdigit() and 1 <= int(choice) <= len(email_list):
+                    choice = int(choice)
+                    break
                 print("Choix invalide.")
+
+            # Envoyer le choix de l'utilisateur au serveur
+            email_choice_payload = {"choice": choice}
+            message = gloutils.GloMessage(
+                header=gloutils.Headers.INBOX_READING_CHOICE,
+                payload=email_choice_payload
+            )
+            glosocket.snd_mesg(self._socket, json.dumps(message))
+            reponse = json.loads(glosocket.recv_mesg(self._socket))
+
+            # Verification de la réponse du serveur pour le choix
+            if reponse["header"] != gloutils.Headers.OK:
+                print(reponse['payload']['error_message'])
                 return
 
-            # Envoyer le choix et afficher le courriel
-            choice_request = {"header": "INBOX_READING_CHOICE", "payload": {"choice": choice}}
-            glosocket.snd_mesg(self._socket, json.dumps(choice_request))
-            email_response = json.loads(glosocket.recv_mesg(self._socket))
-
-            if "payload" not in email_response:
-                print("Erreur : courriel non récupéré.")
-                return
-
+            # Affichage du courriel
+            email = reponse["payload"]
             print(gloutils.EMAIL_DISPLAY.format(
-                sender=email_response["payload"]["sender"],
-                to=email_response["payload"]["destination"],
-                subject=email_response["payload"]["subject"],
-                date=email_response["payload"]["date"],
-                body=email_response["payload"]["content"]
+                sender=email["sender"],
+                to=email["destination"],
+                subject=email["subject"],
+                date=email["date"],
+                body=email["content"]
             ))
-        except Exception as e:
-            print(f"Erreur lors de la lecture des courriels : {e}")
+        except glosocket.GLOSocketError:
+            print("Échec de la consultation des courriels.")
 
 
     def _send_email(self) -> None:
