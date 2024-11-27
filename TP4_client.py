@@ -116,7 +116,7 @@ class Client:
         """
         try :
             #Message de deconnexion
-            message = gloutils.GloMessage(header=gloutils.Headers.BYE, payload={})
+            message = gloutils.GloMessage(header=gloutils.Headers.BYE)
 
             #Envoyer le message au serveur et fermer le socket
             glosocket.snd_mesg(self._socket, json.dumps(message))
@@ -124,7 +124,7 @@ class Client:
             self._socket.close()
 
         except glosocket.GLOSocketError as e:
-            print(f"Échec de la déconnexion : {e}")
+            print(f"Échec de la déconnexion du serveur : {e}")
 
     def _read_email(self) -> None:
         """
@@ -206,30 +206,36 @@ class Client:
 
         Transmet ces informations avec l'entête `EMAIL_SENDING`.
         """
-        try:
-            destinataire = input("Entrez l'adresse email du destinataire : ")
-            sujet = input("Entrez le sujet du message : ")
-            print("Entrez le corps du message (tapez '.' sur une seule ligne pour terminer) :")
+        #Demande du destinataire et du sujet
+        destinataire = input("Entrez l'adresse email du destinataire : ")
+        sujet = input("Entrez le sujet du message : ")
 
-            corps = ""
-            while True:
-                ligne = input()
-                if ligne == ".":
-                    break
-                corps += ligne + "\n"
-
-            message = {
-                "header": "EMAIL_SENDING",
-                "payload": {
-                    "destination": destinataire,
-                    "subject": sujet,
-                    "content": corps
-                }
-            }
+        #Entrer le corps du message
+        corps = ""
+        print("Entrez le contenu du courriel (Terminer la saisie avec un '.' seul sur une ligne) :")
+        while (line := input()) != ".":
+            corps += line + "\n"
+        try :
+            #Transmission des informations
+            message = gloutils.GloMessage(header=gloutils.Headers.EMAIL_SENDING,
+                                    payload=gloutils.EmailContentPayload(
+                                    sender=self._username + "@glo2000.ca",
+                                    destination=destinataire.lower(),
+                                    subject=sujet,
+                                    date=gloutils.get_current_utc_time(),
+                                    content=corps))
             glosocket.snd_mesg(self._socket, json.dumps(message))
-            print("Message envoyé avec succès.")
-        except Exception as e:
-            print(f"Erreur lors de l'envoi du courriel : {e}")
+
+            #Traitement de la reponse
+            reponse = json.loads(glosocket.recv_mesg(self._socket))
+            if reponse["header"] == gloutils.Headers.OK:
+                print("Courriel envoyé avec succès !")
+            else:
+                print(reponse['payload']['error_message'])
+        except(glosocket.GLOSocketError) as e:
+            print(f"Échec de l'envoi du courriel : {e}")
+
+
 
     def _check_stats(self) -> None:
         """
@@ -237,36 +243,23 @@ class Client:
 
         Affiche les statistiques à l'aide du gabarit `STATS_DISPLAY`.
         """
+        #Préparer la requête pour demander les statistiques
+        try :
+            message = gloutils.GloMessage(header=gloutils.Headers.STATS_REQUEST)
+            glosocket.snd_mesg(self._socket, json.dumps(message))
 
-        try:
-            # Préparer la requête pour demander les statistiques
-            stats_request = {
-                "header": "STATS_REQUEST"
-            }
+            #Traitement de la reponse
+            reponse = json.loads(glosocket.recv_mesg(self._socket))
 
-            # Envoyer la requête au serveur
-            self._socket.sendall(json.dumps(stats_request).encode("utf-8"))
-
-            # Recevoir la réponse du serveur
-            response = json.loads(self._socket.recv(4096).decode("utf-8"))
-
-            # Vérifier que la réponse contient les données nécessaires
-            if "payload" not in response or not isinstance(response["payload"], dict):
-                print("Erreur : réponse invalide du serveur.")
-                return
-
-            payload = response["payload"]
-
-            # Afficher les statistiques à l'aide du gabarit STATS_DISPLAY
-            print(gloutils.STATS_DISPLAY.format(
-                count=payload.get("count", "N/A"),
-                size=payload.get("size", "N/A")
-            ))
-        except (socket.error, json.JSONDecodeError) as e:
-            print(f"Erreur de communication avec le serveur : {e}")
-        except Exception as e:
-            print(f"Une erreur inattendue est survenue : {e}")
-
+            if reponse["header"] == gloutils.Headers.OK:
+                stats = reponse["payload"]
+                print(gloutils.STATS_DISPLAY.format(
+                    count=stats["count"],
+                    size=stats["size"]))
+            else :
+                print(reponse["payload"]["error_message"])
+        except(glosocket.GLOSocketError):
+            print("Échec de la requête de statistiques au serveur.")
 
     def _logout(self) -> None:
         """
@@ -275,22 +268,21 @@ class Client:
         Met à jour l'attribut `_username`.
         """
         try:
-            # Préparer le message de déconnexion
-            logout_request = {
-                "header": "AUTH_LOGOUT"
-            }
+            #Requete de deconnexion
+            message = gloutils.GloMessage(header=gloutils.Headers.AUTH_LOGOUT)
+            glosocket.snd_mesg(self._socket, json.dumps(message))
 
-            # Envoyer le message au serveur
-            self._socket.sendall(json.dumps(logout_request).encode("utf-8"))
-            print("Déconnexion réussie. Vous êtes maintenant déconnecté.")
+            #Traitement de la réponse
+            reponse = json.loads(glosocket.recv_mesg(self._socket))
 
-            # Réinitialiser le nom d'utilisateur
-            self._username = ""
+            if reponse["header"] is gloutils.Headers.ERROR:
+                print("Il y a eu une erreur côté serveur lors du traitement de la déconnexion.")
+            else:
+                self._username = ""
+                print("Déconnexion réussie.")
 
-        except (socket.error, json.JSONDecodeError) as e:
-            print(f"Erreur lors de la déconnexion : {e}")
-        except Exception as e:
-            print(f"Une erreur inattendue est survenue : {e}")
+        except glosocket.GLOSocketError as e :
+            print(f"Échec de la demande de déconnexion au serveur : {e}")
 
 
     def run(self) -> None:
