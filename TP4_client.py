@@ -85,7 +85,6 @@ class Client:
 
         #Récupération des informations
         username = input("Entrez votre nom d'utilisateur : ")
-        username = input("Entrez votre nom d'utilisateur : ")
         password = getpass.getpass("Entrez votre mot de passe : ")
 
         try :
