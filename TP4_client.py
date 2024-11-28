@@ -48,7 +48,7 @@ class Client:
         `_username` est mis à jour, sinon l'erreur est affichée.
         """
         # Récupération des informations
-        username = input("Entrez un nom d'utilisateur.")
+        username = input("Entrez un nom d'utilisateur : ")
         password = getpass.getpass("Entrez votre mot de passe : ")
 
         try:
@@ -84,7 +84,8 @@ class Client:
         """
 
         #Récupération des informations
-        username = input("Entrez votre nom d'utilisateur.")
+        username = input("Entrez votre nom d'utilisateur : ")
+        username = input("Entrez votre nom d'utilisateur : ")
         password = getpass.getpass("Entrez votre mot de passe : ")
 
         try :
@@ -218,12 +219,12 @@ class Client:
         try :
             #Transmission des informations
             message = gloutils.GloMessage(header=gloutils.Headers.EMAIL_SENDING,
-                                    payload=gloutils.EmailContentPayload(
-                                    sender=self._username + "@glo2000.ca",
-                                    destination=destinataire.lower(),
-                                    subject=sujet,
-                                    date=gloutils.get_current_utc_time(),
-                                    content=corps))
+                                        payload=gloutils.EmailContentPayload(
+                                        sender=self._username + "@glo2000.ca",
+                                        destination=destinataire.lower(),
+                                        subject=sujet,
+                                        date=gloutils.get_current_utc_time(),
+                                        content=corps))
             glosocket.snd_mesg(self._socket, json.dumps(message))
 
             #Traitement de la reponse
@@ -271,16 +272,8 @@ class Client:
             #Requete de deconnexion
             message = gloutils.GloMessage(header=gloutils.Headers.AUTH_LOGOUT)
             glosocket.snd_mesg(self._socket, json.dumps(message))
-
-            #Traitement de la réponse
-            reponse = json.loads(glosocket.recv_mesg(self._socket))
-
-            if reponse["header"] is gloutils.Headers.ERROR:
-                print("Il y a eu une erreur côté serveur lors du traitement de la déconnexion.")
-            else:
-                self._username = ""
-                print("Déconnexion réussie.")
-
+            self._username = ""
+            print("Déconnexion au compte réussie!")
         except glosocket.GLOSocketError as e :
             print(f"Échec de la demande de déconnexion au serveur : {e}")
 
