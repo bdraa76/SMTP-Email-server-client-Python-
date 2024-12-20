@@ -23,7 +23,7 @@ Python (socket, hashlib, hmac, json, pathlib, os)
 glosocket for communication, gloutils for templates and utilities.
 This project adheres to IPv4 and TCP standards and is designed to work within a controlled testing environment.
 
-##Usage
+## Usage
 
 Open the directory where TP4_client and TP4_server are found and launch terminal
 1. Run the server with the command **python TP4_server.py**
