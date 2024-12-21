@@ -1,6 +1,6 @@
 # Email Server and Client System
 
-This project is a part of the **GLO-2000 Networks for Engineers course** and focuses on developing a robust internal email system for the fictional domain `@glo2000.ca.` It consolidates knowledge of socket programming, data transmission using a shared protocol, and handling multiple clients simultaneously.
+This project focuses on developing a robust internal email system for the fictional domain `@glo2000.ca.` It consolidates knowledge of socket programming, data transmission using a shared protocol, and handling multiple clients simultaneously.
 
 The system includes:
 
